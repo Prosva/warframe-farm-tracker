@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies if needed...
+py -m pip install -r requirements.txt
+echo Starting Farm Tracker...
+py main.py
+pause
