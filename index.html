@@ -21,6 +21,7 @@
   --surface-2: #1c1730;
   --line: #2d2646;
   --grid: rgba(167, 139, 250, 0.05);
+  --live: #4ade80;
   --fg: #ece9f6;
   --muted: #a39cbc;
   --faint: #7a7295;
@@ -106,6 +107,18 @@ p { margin: 0; }
 .kv dt { color: var(--muted); font-size: .92rem; }
 .kv dd { margin: 0; font-family: var(--font-mono); text-align: right; }
 .kv dd.eta { color: var(--accent); font-weight: 500; }
+
+/* live stats */
+[hidden] { display: none !important; }
+.stats { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 24px; font: 500 .84rem/1.2 var(--font-mono); color: var(--muted); }
+.stat { display: inline-flex; align-items: center; gap: 8px; }
+.stat b { color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; }
+.live { width: 9px; height: 9px; border-radius: 50%; background: var(--live); animation: pulse 1.6s ease-out infinite; flex: none; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, .55); opacity: 1; }
+  70% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); opacity: .5; }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); opacity: 1; }
+}
 
 /* sections */
 .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
@@ -193,6 +206,10 @@ footer { border-top: 1px solid var(--line); padding-block: 28px 40px; color: var
           <a class="btn primary" href="https://github.com/Prosva/warframe-farm-tracker/releases" target="_blank" rel="noopener" data-i18n="btn_download">Скачать</a>
           <a class="btn" href="https://github.com/Prosva/warframe-farm-tracker" target="_blank" rel="noopener">GitHub</a>
         </div>
+        <div class="stats" id="stats" hidden>
+          <span class="stat" id="dlStat" hidden><span data-i18n="stat_dl">Скачиваний:</span><b id="dlCount"></b></span>
+          <span class="stat" id="onlineStat" hidden><i class="live" aria-hidden="true"></i><span data-i18n="stat_online">Сейчас на сайте:</span><b id="onlineCount"></b></span>
+        </div>
       </div>
       <div class="readout" aria-label="Example">
         <div class="head">
@@ -274,7 +291,7 @@ var T = {
     nav_features: "Возможности", nav_shots: "Скриншоты", nav_install: "Установка", nav_faq: "FAQ",
     hero_eyebrow: "Трекер для Warframe",
     hero_lead: "WFT считает фарм за тебя: цели по ресурсам, прогноз времени, подбор значений с экрана и мировая сводка в одной программе.",
-    btn_download: "Скачать",
+    btn_download: "Скачать", stat_dl: "Скачиваний:", stat_online: "Сейчас на сайте:",
     panel_label: "Пример расчёта", panel_goal_tag: "Цель",
     panel_res: "Нейроды", panel_have_val: "12 480", panel_goal_val: "20 000",
     panel_rate: "Темп", panel_rate_val: "1 880 / ч",
@@ -308,7 +325,7 @@ var T = {
     nav_features: "Features", nav_shots: "Screenshots", nav_install: "Install", nav_faq: "FAQ",
     hero_eyebrow: "A tracker for Warframe",
     hero_lead: "WFT does the farming math for you: resource goals, time forecasts, values read from your screen and a world overview in one program.",
-    btn_download: "Download",
+    btn_download: "Download", stat_dl: "Downloads:", stat_online: "Online now:",
     panel_label: "Example calculation", panel_goal_tag: "Goal",
     panel_res: "Neurodes", panel_have_val: "12,480", panel_goal_val: "20,000",
     panel_rate: "Rate", panel_rate_val: "1,880 / h",
@@ -355,6 +372,7 @@ function apply(l) {
   document.getElementById("lang-ru").setAttribute("aria-pressed", String(l === "ru"));
   document.getElementById("lang-en").setAttribute("aria-pressed", String(l === "en"));
   try { localStorage.setItem("wft-lang", l); } catch (e) {}
+  if (typeof renderStats === "function") renderStats();
 }
 var start = "ru";
 try {
@@ -380,6 +398,77 @@ document.getElementById("copyDiscord").addEventListener("click", function () {
     navigator.clipboard.writeText(name.textContent).then(done, fallback);
   } catch (e) { fallback(); }
 });
+/* live stats */
+var statDl = null, statOnline = null;
+/* Firebase web config for the online counter (Realtime Database, path "presence"). */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCRdDHr7sb7NSzFEUaVt0QUb9LO1fV-9zg",
+  authDomain: "wft-site.firebaseapp.com",
+  databaseURL: "https://wft-site-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "wft-site",
+  storageBucket: "wft-site.firebasestorage.app",
+  messagingSenderId: "744596068858",
+  appId: "1:744596068858:web:d58aa6a433d7c3dc8cec43"
+};
+function fmt(n) {
+  try { return n.toLocaleString(lang === "ru" ? "ru-RU" : "en-US"); } catch (e) { return String(n); }
+}
+function renderStats() {
+  if (statDl == null && statOnline == null) return;
+  document.getElementById("stats").hidden = false;
+  if (statDl != null) {
+    document.getElementById("dlCount").textContent = fmt(statDl);
+    document.getElementById("dlStat").hidden = false;
+  }
+  if (statOnline != null) {
+    document.getElementById("onlineCount").textContent = fmt(statOnline);
+    document.getElementById("onlineStat").hidden = false;
+  }
+}
+(function () {
+  var KEY = "wft-dl", TTL = 10 * 60 * 1000;
+  try {
+    var c = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (c && typeof c.n === "number" && Date.now() - c.t < TTL) { statDl = c.n; renderStats(); return; }
+  } catch (e) {}
+  fetch("https://api.github.com/repos/Prosva/warframe-farm-tracker/releases?per_page=100", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+    .then(function (list) {
+      var n = 0;
+      list.forEach(function (rel) {
+        (rel.assets || []).forEach(function (a) { n += a.download_count || 0; });
+      });
+      statDl = n;
+      renderStats();
+      try { localStorage.setItem(KEY, JSON.stringify({ n: n, t: Date.now() })); } catch (e) {}
+    })
+    .catch(function () {});
+})();
+(function () {
+  if (!FIREBASE_CONFIG) return;
+  function load(src, cb) {
+    var el = document.createElement("script");
+    el.src = src;
+    el.onload = cb;
+    document.head.appendChild(el);
+  }
+  var base = "https://www.gstatic.com/firebasejs/10.12.2/";
+  load(base + "firebase-app-compat.js", function () {
+    load(base + "firebase-database-compat.js", function () {
+      try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        var db = firebase.database(), me = db.ref("presence").push();
+        db.ref(".info/connected").on("value", function (snap) {
+          if (snap.val() === true) { me.onDisconnect().remove(); me.set(true); }
+        });
+        db.ref("presence").on("value", function (snap) {
+          statOnline = Math.max(1, snap.numChildren());
+          renderStats();
+        });
+      } catch (e) {}
+    });
+  });
+})();
 </script>
 </body>
 </html>
