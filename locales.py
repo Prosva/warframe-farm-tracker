@@ -160,6 +160,8 @@ TRANSLATIONS = {
     "Opacity": "Прозрачность",
     "Ctrl+Shift+F - show/hide, Ctrl+Shift+G - ghost mode":
         "Ctrl+Shift+F — показать/скрыть, Ctrl+Shift+G — призрачный режим",
+    "If hotkeys do nothing while Warframe is focused, run the tracker as administrator.":
+        "Если горячие клавиши не срабатывают в Warframe, запусти трекер от имени администратора.",
     "Notifications": "Уведомления",
     "Notify when a goal is reached": "Уведомлять о достижении цели",
     "Notify when Baro arrives": "Уведомлять о прилёте Баро",

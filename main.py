@@ -32,11 +32,13 @@ import theme
 import locales
 from resources_data import CATEGORIES, RARITY_ORDER
 
+HOTKEY_ERROR = ""
 try:
     from pynput import keyboard as pynput_keyboard
     HOTKEY_AVAILABLE = True
-except ImportError:
+except Exception as _exc:   # ImportError, or a backend that failed to load
     HOTKEY_AVAILABLE = False
+    HOTKEY_ERROR = repr(_exc)
 
 
 APP_TITLE = "Farm Tracker"
@@ -831,6 +833,8 @@ class FarmTrackerApp:
         self.opacity_slider.bind("<ButtonRelease-1>", lambda e: self._save_opacity())
         hotkey_note = (self.t("Ctrl+Shift+F - show/hide, Ctrl+Shift+G - ghost mode")
                        if HOTKEY_AVAILABLE else self.t("(install 'pynput' for hotkey)"))
+        if HOTKEY_AVAILABLE:
+            hotkey_note += "\n" + self.t("If hotkeys do nothing while Warframe is focused, run the tracker as administrator.")
         ctk.CTkLabel(sf, text=hotkey_note, font=(theme.FONT_FAMILY, 9),
                      text_color=theme.TEXT_DIM, anchor="w", wraplength=340,
                      justify="left").pack(fill="x")
@@ -2035,8 +2039,10 @@ class FarmTrackerApp:
             hotkey = pynput_keyboard.GlobalHotKeys({DEFAULT_HOTKEY: on_hotkey, GHOST_HOTKEY: on_ghost})
             hotkey.start()
             self._hotkey_listener = hotkey
-        except Exception:
-            pass
+        except Exception as exc:
+            # Don't fail silently: remember why, so Settings can show it.
+            global HOTKEY_ERROR
+            HOTKEY_ERROR = repr(exc)
 
     def _toggle_visibility(self):
         if self.root.state() == "withdrawn":

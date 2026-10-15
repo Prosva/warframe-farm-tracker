@@ -48,7 +48,7 @@ auto-detected mission context from the game's own EE.log file.
   "+ New resource", with an editable farm-tip.
 - Dark blue/purple themed UI (CustomTkinter), always-on-top, draggable,
   collapsible.
-- Hotkey `Ctrl+Shift+F` shows/hides the overlay instantly.
+- Hotkey `Ctrl+Shift+F` shows/hides the overlay instantly. If it does nothing while Warframe is focused (e.g. Warframe runs as administrator), run FarmTracker.exe as administrator too: Windows doesn't let a normal program see keys pressed in an elevated one.
 - Everything is saved to `user_data.json` next to the program — it
   survives restarts and app updates.
 

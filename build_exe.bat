@@ -16,7 +16,7 @@ if errorlevel 1 (
 
 echo.
 echo Building FarmTracker.exe (this can take a minute)...
-py -m PyInstaller --onefile --windowed --name "FarmTracker" --collect-all customtkinter --collect-all darkdetect --add-data "tessdata;tessdata" main.py
+py -m PyInstaller --onefile --windowed --name "FarmTracker" --collect-all customtkinter --collect-all darkdetect --hidden-import pynput.keyboard._win32 --hidden-import pynput.mouse._win32 --add-data "tessdata;tessdata" main.py
 if errorlevel 1 (
     echo.
     echo ERROR: build failed, see the messages above.
